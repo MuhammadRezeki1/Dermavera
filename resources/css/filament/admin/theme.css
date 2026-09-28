@@ -1,0 +1,71 @@
+@import '../../../../vendor/filament/filament/resources/css/theme.css';
+
+@source '../../../../app/Filament/**/*.php';
+@source '../../../views/filament/**/*.blade.php';
+
+:root {
+    --font-family: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+}
+
+.fi-body {
+    background-color: #f7f4ee;
+    background-image: radial-gradient(rgba(20,33,61,.08) .45px, transparent .45px);
+    background-size: 5px 5px;
+}
+
+.fi-sidebar {
+    background: #14213d;
+    border-inline-end: 0;
+}
+
+.fi-sidebar-header {
+    background: #14213d;
+    box-shadow: none;
+    border-bottom: 1px solid rgba(255,255,255,.1);
+}
+
+.fi-logo, .fi-sidebar-item-label, .fi-sidebar-group-label { color: #eef2f0; }
+.fi-sidebar .fi-logo { width: 190px; height: auto !important; padding: .2rem .55rem; background: #f7f4ee; border-radius: 2px; object-fit: contain; }
+.fi-topbar .fi-logo { width: 170px; height: auto !important; object-fit: contain; }
+.fi-sidebar-group-label { color: #a8c9be; letter-spacing: .08em; text-transform: uppercase; }
+.fi-sidebar-item-icon { color: #91a0b7; }
+.fi-sidebar-item-active > .fi-sidebar-item-btn { background: rgba(168,201,190,.15); }
+.fi-sidebar-item-active .fi-sidebar-item-icon, .fi-sidebar-item-active .fi-sidebar-item-label { color: #a8c9be; }
+.fi-topbar nav { background: rgba(247,244,238,.92); backdrop-filter: blur(16px); border-bottom: 1px solid rgba(20,33,61,.12); box-shadow: none; }
+.fi-main-ctn { background: transparent; }
+.fi-header-heading { color: #14213d; font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; letter-spacing: -.02em; }
+.fi-section, .fi-ta-ctn, .fi-wi-stats-overview-stat { border-radius: 2px; border-color: rgba(20,33,61,.13); box-shadow: 0 10px 30px rgba(20,33,61,.06); }
+.fi-btn { border-radius: 2px; }
+.fi-input-wrp { border-radius: 2px; }
+.fi-ta-header-cell { color: #657064; font-size: .7rem; letter-spacing: .07em; text-transform: uppercase; }
+
+/* Branded glass login surface for the admin control room. */
+.fi-body.fi-panel-admin { min-height: 100svh; background: #dce9e2 !important; }
+.fi-simple-layout { position: relative; min-height: 100svh; overflow: hidden; isolation: isolate; background: radial-gradient(circle at 12% 14%, rgba(168,201,190,.52), transparent 30%), radial-gradient(circle at 88% 82%, rgba(15,157,138,.2), transparent 34%), linear-gradient(135deg, #dce9e2 0%, #f7f4ee 48%, #d7e6df 100%) !important; }
+.fi-simple-layout::before, .fi-simple-layout::after { content: ''; position: absolute; z-index: -1; width: 34rem; aspect-ratio: 1; border-radius: 50%; border: 1px solid rgba(255,255,255,.62); pointer-events: none; animation: admin-orbit 18s ease-in-out infinite alternate; }
+.fi-simple-layout::before { top: -21rem; right: -10rem; background: radial-gradient(circle at 35% 65%, rgba(15,157,138,.3), rgba(168,201,190,.08) 62%, transparent 70%); }
+.fi-simple-layout::after { bottom: -24rem; left: -13rem; width: 40rem; animation-delay: -7s; background: radial-gradient(circle at 70% 30%, rgba(20,33,61,.12), rgba(255,255,255,.16) 62%, transparent 70%); }
+.fi-simple-main-ctn { display: grid; min-height: 100svh; place-items: center; padding: 2rem; background: transparent !important; }
+.fi-simple-main { width: min(100%, 48rem); max-width: none !important; }
+.fi-simple-page { animation: admin-card-in .8s cubic-bezier(.22,.8,.28,1) both; }
+.fi-simple-page-content { position: relative; overflow: hidden; padding: clamp(1.6rem, 5vw, 3rem) !important; border: 1px solid rgba(255,255,255,.7); border-radius: 28px; background: linear-gradient(145deg, rgba(255,255,255,.72), rgba(255,255,255,.36)) !important; box-shadow: 0 28px 80px rgba(20,33,61,.18), inset 0 1px 0 rgba(255,255,255,.75); backdrop-filter: blur(24px) saturate(125%); -webkit-backdrop-filter: blur(24px) saturate(125%); color: #14213d !important; }
+.fi-simple-page-content::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(120deg, rgba(255,255,255,.5), transparent 35%, rgba(15,157,138,.08)); }
+.fi-simple-header, .fi-simple-page-content > .fi-grid { position: relative; z-index: 1; }
+.fi-simple-header { gap: 1rem; margin-bottom: 1.8rem; }
+.fi-simple-header .fi-logo { width: min(238px, 68vw) !important; height: auto !important; margin-inline: auto; padding: 0 !important; background: transparent !important; border-radius: 0 !important; filter: drop-shadow(0 10px 18px rgba(20,33,61,.12)); }
+.fi-simple-header-heading { color: #14213d !important; font-family: 'DM Serif Display', Georgia, serif; font-size: clamp(1.8rem, 5vw, 2.35rem); font-weight: 400 !important; letter-spacing: -.035em; }
+.fi-fo-field-label, .fi-fo-field-label-content { color: #14213d !important; font-weight: 800; }
+.fi-input-wrp { border: 1px solid rgba(20,33,61,.16) !important; border-radius: 14px !important; background: rgba(255,255,255,.55) !important; box-shadow: 0 5px 18px rgba(20,33,61,.05), inset 0 1px 0 rgba(255,255,255,.62) !important; transition: border-color .25s ease, box-shadow .25s ease, transform .25s ease, background-color .25s ease; }
+.fi-input-wrp:hover { border-color: rgba(15,157,138,.45) !important; background: rgba(255,255,255,.7) !important; transform: translateY(-1px); }
+.fi-input-wrp:focus-within { border-color: #0f9d8a !important; box-shadow: 0 0 0 4px rgba(15,157,138,.14), 0 9px 24px rgba(20,33,61,.09) !important; }
+.fi-input { color: #14213d !important; background: transparent !important; }
+.fi-input::placeholder { color: rgba(101,112,100,.7) !important; }
+.fi-checkbox-input { accent-color: #0f9d8a; }
+.fi-simple-page-content .fi-ac-btn-action { min-height: 50px; border-radius: 14px !important; background: linear-gradient(110deg, #0f9d8a, #08786a) !important; box-shadow: 0 12px 24px rgba(15,157,138,.23); transition: transform .25s ease, box-shadow .25s ease, background-color .25s ease; }
+.fi-simple-page-content .fi-ac-btn-action:hover { transform: translateY(-2px); background: linear-gradient(110deg, #13ae99, #08786a) !important; box-shadow: 0 16px 28px rgba(15,157,138,.28); }
+.fi-simple-page-content .fi-icon-btn-action { color: #657064 !important; }
+html.dark .fi-simple-layout, html.dark .fi-simple-page-content { color: #14213d !important; }
+@keyframes admin-card-in { from { opacity: 0; transform: translateY(24px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes admin-orbit { from { transform: translate3d(-10px, 0, 0) rotate(0deg); } to { transform: translate3d(18px, 14px, 0) rotate(8deg); } }
+@media (max-width: 640px) { .fi-simple-main-ctn { padding: 1rem; } .fi-simple-page-content { padding: 1.35rem !important; } }
+@media (prefers-reduced-motion: reduce) { .fi-simple-page, .fi-simple-layout::before, .fi-simple-layout::after { animation: none !important; } }

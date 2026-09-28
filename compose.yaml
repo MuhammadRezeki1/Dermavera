@@ -1,0 +1,49 @@
+services:
+  app:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+      target: runtime
+    env_file: .env
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      REDIS_HOST: redis
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - app-storage:/var/www/html/storage
+  nginx:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+      target: web
+    ports: ["127.0.0.1:8080:80"]
+    depends_on: [app]
+  postgres:
+    restart: unless-stopped
+    image: postgres:17-alpine
+    ports: ["127.0.0.1:5433:5432"]
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-dermavera}
+      POSTGRES_USER: ${DB_USERNAME:-dermavera_app}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-change_me}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-dermavera_app} -d ${DB_DATABASE:-dermavera}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes: [postgres-data:/var/lib/postgresql/data]
+  redis:
+    restart: unless-stopped
+    image: redis:8-alpine
+    ports: ["127.0.0.1:6380:6379"]
+    command: redis-server --appendonly yes
+    volumes: [redis-data:/data]
+volumes:
+  app-storage:
+  postgres-data:
+  redis-data:

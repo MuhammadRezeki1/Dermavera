@@ -1,0 +1,18 @@
+{
+    "Servers": {
+        "1": {
+            "Name": "Dermavera Docker",
+            "Group": "Servers",
+            "Host": "127.0.0.1",
+            "Port": 5433,
+            "MaintenanceDB": "dermavera",
+            "Username": "dermavera_app",
+            "Comment": "Database PostgreSQL 17 untuk proyek Dermavera (Docker Compose).",
+            "ConnectionParameters": {
+                "sslmode": "prefer"
+            },
+            "PasswordExecCommand": "powershell.exe -NoProfile -Command \"$entry = Get-Content -LiteralPath 'C:\\Users\\USER\\Dermavera\\.env' | Where-Object { $_ -match '^DB_PASSWORD=' } | Select-Object -First 1; if ($entry) { $entry.Substring(12) }\"",
+            "PasswordExecExpiration": 3600
+        }
+    }
+}
