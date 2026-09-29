@@ -10,6 +10,10 @@ use Illuminate\Support\Str;
 
 class EligibilityService
 {
+    private const EXPLICIT_SCRUB_INGREDIENTS = ['PUMICE', 'PERLITE', 'HYDRATED SILICA', 'MICROCRYSTALLINE CELLULOSE', 'POLYETHYLENE', 'SYNTHETIC WAX'];
+
+    private const CONTEXTUAL_SCRUB_INGREDIENTS = ['CELLULOSE', 'CELLULOSE GUM', 'SILICA', 'CORN STARCH', 'ZEA MAYS STARCH', 'MAGNESIUM POTASSIUM FLUOROSILICATE'];
+
     /**
      * @param  Collection<int, ProductVariant>  $variants
      * @param  array{allergies?:list<string>,sensitive?:bool,barrier_impaired?:bool,acne_therapy?:bool}  $profile
@@ -53,7 +57,8 @@ class EligibilityService
                     continue;
                 }
                 $hasScrub = $ingredients->contains(fn ($ingredient) => $ingredient->is_physical_scrub)
-                    || collect(['PUMICE', 'PERLITE', 'HYDRATED SILICA', 'MICROCRYSTALLINE CELLULOSE', 'CORN STARCH', 'POLYETHYLENE', 'SYNTHETIC WAX'])->contains(fn ($term) => $contains($term));
+                    || $this->containsExplicitScrubIngredient($ingredientNames)
+                    || ($this->hasScrubClaim($variant) && $this->containsContextualScrubIngredient($ingredientNames));
                 $isCompromised = ($profile['sensitive'] ?? false) || ($profile['barrier_impaired'] ?? false);
                 if ($isCompromised && $hasScrub) {
                     $excluded[$key] = $candidate + ['reasons' => ['HC-02', 'physical_scrub_conflict']];
@@ -76,5 +81,28 @@ class EligibilityService
         }
 
         return ['eligible' => $eligible, 'excluded' => $excluded];
+    }
+
+    /** @param Collection<int, string> $ingredientNames */
+    private function containsExplicitScrubIngredient(Collection $ingredientNames): bool
+    {
+        return collect(self::EXPLICIT_SCRUB_INGREDIENTS)->contains(
+            fn (string $term) => $ingredientNames->contains(fn (string $name) => Str::contains($name, $term)),
+        );
+    }
+
+    /** @param Collection<int, string> $ingredientNames */
+    private function containsContextualScrubIngredient(Collection $ingredientNames): bool
+    {
+        return $ingredientNames->contains(function (string $name): bool {
+            $normalized = rtrim(trim($name), '.');
+
+            return in_array($normalized, self::CONTEXTUAL_SCRUB_INGREDIENTS, true);
+        });
+    }
+
+    private function hasScrubClaim(ProductVariant $variant): bool
+    {
+        return Str::contains(Str::upper($variant->name.' '.($variant->target_claim ?? '')), 'SCRUB');
     }
 }

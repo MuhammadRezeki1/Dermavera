@@ -48,7 +48,7 @@ class RecommendationFlowTest extends TestCase
         $this->assertCount(6, $run->calculation_snapshot['W']);
         $this->assertNotEmpty($run->calculation_snapshot['V']);
         $this->assertSame('saw-1.3.0', $run->calculation_snapshot['algorithm_version']);
-        $this->assertSame('criteria-1.3.0', $run->calculation_snapshot['scoring_version']);
+        $this->assertSame('criteria-1.4.0', $run->calculation_snapshot['scoring_version']);
         $this->assertSame('1.0.1', $run->calculation_snapshot['dataset_version']);
         $this->assertGreaterThanOrEqual(3, $run->results->where('eligibility_status', 'eligible')->count());
     }

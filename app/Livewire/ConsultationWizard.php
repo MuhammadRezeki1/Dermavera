@@ -38,6 +38,8 @@ class ConsultationWizard extends Component
 
     public string $packagingPreference = '';
 
+    public bool $showConfirmation = false;
+
     public function mount(string $step = 'consent'): void
     {
         $this->step = $step;
@@ -78,12 +80,74 @@ class ConsultationWizard extends Component
         $this->redirectRoute('consultation.preference', navigate: true);
     }
 
-    public function finish(RecommendationService $service): void
+    public function review(): void
     {
         $this->validate(['minPrice' => ['nullable', 'integer', 'min:0'], 'maxPrice' => ['nullable', 'integer', 'min:0', 'gte:minPrice'], 'packagingPreference' => ['nullable', 'in:tube,pump,bottle']]);
         $this->persist(['minPrice' => $this->minPrice, 'maxPrice' => $this->maxPrice, 'packagingPreference' => $this->packagingPreference]);
-        $draft = session('consultation_draft');
-        $profile = ['age' => $draft['age'], 'primary_complaint' => $draft['primaryComplaint'], 'secondary_concerns' => $draft['secondaryConcerns'], 'skin_type' => $draft['skinType'], 'sensitive' => (bool) $draft['sensitive'], 'barrier_impaired' => (bool) $draft['barrierImpaired'], 'acne_therapy' => (bool) $draft['acneTherapy'], 'allergies' => array_values(array_filter(array_map('trim', preg_split('/[,;\n]+/', $draft['allergiesText'] ?? '') ?: []))), 'red_flags' => $draft['redFlags'], 'min_price' => $draft['minPrice'], 'max_price' => $draft['maxPrice'], 'packaging_preference' => $draft['packagingPreference'], 'consent_at' => $draft['consent_at']];
+        $this->showConfirmation = true;
+    }
+
+    public function finish(): void
+    {
+        $this->review();
+    }
+
+    public function cancelReview(): void
+    {
+        $this->showConfirmation = false;
+    }
+
+    public function confirmFinish(RecommendationService $service): void
+    {
+        $this->validate([
+            'consent' => ['accepted'],
+            'age' => ['required', 'integer', 'between:18,30'],
+            'primaryComplaint' => ['required', 'in:berminyak,komedo,jerawat_ringan,kusam,kering'],
+            'skinType' => ['required', 'in:normal,berminyak,kering,kombinasi'],
+            'secondaryConcerns' => ['array'],
+            'sensitive' => ['required', 'boolean'],
+            'barrierImpaired' => ['required', 'boolean'],
+            'acneTherapy' => ['required', 'boolean'],
+            'allergiesText' => ['nullable', 'string', 'max:1000'],
+            'redFlags' => ['array'],
+            'redFlags.*' => ['in:nodul_kistik,jerawat_berat_memburuk,jaringan_parut,luka_infeksi_luas,bengkak_alergi_berat,nyeri_terbakar_menetap,penyakit_kulit_dalam_pengobatan'],
+            'minPrice' => ['nullable', 'integer', 'min:0'],
+            'maxPrice' => ['nullable', 'integer', 'min:0', 'gte:minPrice'],
+            'packagingPreference' => ['nullable', 'in:tube,pump,bottle'],
+        ]);
+
+        $draft = session('consultation_draft', []);
+        $this->persist([
+            'consent' => $this->consent,
+            'age' => $this->age,
+            'primaryComplaint' => $this->primaryComplaint,
+            'secondaryConcerns' => $this->secondaryConcerns,
+            'skinType' => $this->skinType,
+            'sensitive' => (bool) $this->sensitive,
+            'barrierImpaired' => (bool) $this->barrierImpaired,
+            'acneTherapy' => (bool) $this->acneTherapy,
+            'allergiesText' => $this->allergiesText,
+            'redFlags' => $this->redFlags,
+            'minPrice' => $this->minPrice,
+            'maxPrice' => $this->maxPrice,
+            'packagingPreference' => $this->packagingPreference,
+        ]);
+
+        $profile = [
+            'age' => $this->age,
+            'primary_complaint' => $this->primaryComplaint,
+            'secondary_concerns' => $this->secondaryConcerns,
+            'skin_type' => $this->skinType,
+            'sensitive' => (bool) $this->sensitive,
+            'barrier_impaired' => (bool) $this->barrierImpaired,
+            'acne_therapy' => (bool) $this->acneTherapy,
+            'allergies' => array_values(array_filter(array_map('trim', preg_split('/[,;\n]+/', $this->allergiesText) ?: []))),
+            'red_flags' => $this->redFlags,
+            'min_price' => $this->minPrice,
+            'max_price' => $this->maxPrice,
+            'packaging_preference' => $this->packagingPreference,
+            'consent_at' => $draft['consent_at'] ?? now()->toIso8601String(),
+        ];
         $consultation = $service->evaluate($profile, auth()->user()?->id);
         if (! $consultation->user_id) {
             session()->push('guest_consultations', $consultation->uuid);

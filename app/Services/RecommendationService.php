@@ -9,6 +9,7 @@ use App\Models\ProductVariant;
 use App\Models\RecommendationResult;
 use App\Models\SafetyAssessment;
 use App\Models\WeightSet;
+use Brick\Math\BigDecimal;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -109,9 +110,17 @@ class RecommendationService
                 ->all();
             $eligibleCount = count($calculation->ranking);
             $scoreMode = $eligibleCount === 1 ? 'relative_single_candidate' : 'comparative_saw';
+            $displayRank = 0;
+            $previousScore = null;
             foreach ($calculation->ranking as $index => $code) {
+                $score = BigDecimal::of($calculation->scores[$code]);
+                if ($previousScore === null || $previousScore->minus($score)->abs()->isGreaterThan('0.0001')) {
+                    $displayRank = $index + 1;
+                    $previousScore = $score;
+                }
+
                 RecommendationResult::create([
-                    'recommendation_run_id' => $run->id, 'product_variant_id' => $metadata[$code]['variant']->id, 'product_sku_id' => $metadata[$code]['sku']->id, 'formula_version_id' => $metadata[$code]['formula']->id, 'price_observation_id' => $metadata[$code]['price']->id, 'rank' => $index + 1,
+                    'recommendation_run_id' => $run->id, 'product_variant_id' => $metadata[$code]['variant']->id, 'product_sku_id' => $metadata[$code]['sku']->id, 'formula_version_id' => $metadata[$code]['formula']->id, 'price_observation_id' => $metadata[$code]['price']->id, 'rank' => $displayRank,
                     'raw_scores' => $calculation->matrix[$code], 'normalized_scores' => $calculation->normalized[$code],
                     'contributions' => $calculation->contributions[$code], 'final_score' => $calculation->scores[$code],
                     'eligibility_status' => 'eligible', 'explanation_codes' => $metadata[$code]['explanations'], 'warnings' => [...$decision->warnings, ...$metadata[$code]['warnings']],

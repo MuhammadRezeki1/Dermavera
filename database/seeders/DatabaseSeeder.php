@@ -18,7 +18,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([CriterionSeeder::class, ValidatedWeightSeeder::class, SafetyRuleSeeder::class, ProductCatalogSeeder::class, PriceObservationSeeder::class, DemoUserSeeder::class]);
         $service = app(DatasetVersionService::class);
-        $dataset = DatasetVersion::where('version', '1.4.5')->first() ?: $service->snapshot('1.4.5', 'Dataset 37 record produk dengan observasi harga retailer/resmi terbaru 28 September 2026, tie group, penalti iritan kulit kering, dan status stok N08.');
+        $dataset = DatasetVersion::where('version', '1.4.7')->first() ?: $service->snapshot('1.4.7', 'Dataset dengan pemetaan kelompok ingredient relevan/pendukung/bukti terbatas, penalti kontekstual, dan peringkat setara untuk skor SAW identik.');
         if ($dataset->status !== 'active') {
             $service->activate($dataset);
         }

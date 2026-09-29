@@ -44,16 +44,18 @@
             <section class="empty-state content-card"><span>∅</span><h2>Data belum cukup untuk ranking yang aman</h2><p>Produk tidak dipaksakan masuk hasil. Penyebabnya dapat berupa harga yang tidak segar, formula tidak lengkap, atau semua alternatif bertentangan dengan hard constraint.</p><a class="button button-secondary" href="{{ route('catalog') }}">Telusuri katalog</a></section>
         @else
             @php
-                $winner = $top->first();
+                $featured = $eligible->take(3);
+                $winner = $featured->first();
                 $singleCandidate = $eligible->count() === 1;
-                $winnerIsTied = ($winner->tie_count ?? 1) > 1;
+                $winnerIsIdeal = collect($winner->normalized_scores ?? [])->isNotEmpty()
+                    && collect($winner->normalized_scores)->every(fn ($value) => (float) $value >= .999999);
                 $scoreLabel = $singleCandidate ? 'SKOR RELATIF' : 'SKOR AKHIR';
             @endphp
             <article class="winner-card" data-result-card>
-                <div class="winner-media"><span class="winner-rank">PILIHAN #1{{ $winnerIsTied ? ' · SERI' : '' }}</span><x-product-image :variant="$winner->variant" :eager="true" /></div>
-                <div class="winner-copy"><span class="eyebrow"><i></i> {{ strtoupper($winner->variant->brand->name) }}</span><h2>{{ $winner->variant->name }}</h2><p class="winner-reason">{{ $singleCandidate ? 'Satu-satunya alternatif yang lolos pemeriksaan dan dapat dihitung.' : ($winnerIsTied ? 'Skornya seri dengan kandidat lain; urutan berikutnya memakai tie-break deterministik.' : 'Pilihan teratas setelah safety gate dan normalisasi enam kriteria.') }}</p>
+                <div class="winner-media"><span class="winner-rank">PILIHAN #1</span><x-product-image :variant="$winner->variant" :eager="true" /></div>
+                <div class="winner-copy"><span class="eyebrow"><i></i> {{ strtoupper($winner->variant->brand->name) }}</span><h2>{{ $winner->variant->name }}</h2><p class="winner-reason">{{ $singleCandidate ? 'Satu-satunya alternatif yang lolos pemeriksaan dan dapat dihitung.' : 'Pilihan teratas setelah safety gate dan normalisasi enam kriteria.' }}</p>
                     <div class="winner-score"><div><span data-score="{{ $winner->final_score }}">{{ number_format((float)$winner->final_score, 4, ',', '.') }}</span><small>{{ $scoreLabel }}</small></div><div><strong>{{ $winner->sku ? rtrim(rtrim(number_format((float)$winner->sku->size_value, 2, ',', '.'), '0'), ',').' '.$winner->sku->size_unit : '—' }}</strong><small>UKURAN</small></div><div><strong>{{ $winner->price ? 'Rp'.number_format((float)$winner->price->amount, 0, ',', '.') : '—' }}</strong><small>HARGA OBSERVASI</small></div></div>
-                    @if ($singleCandidate)<div class="notice"><div aria-hidden="true">i</div><div><strong>Skor ini bersifat relatif.</strong><p>Hanya satu kandidat yang lolos, sehingga nilai 1,0000 tidak dapat dibandingkan dengan produk lain dan bukan persentase kecocokan absolut.</p></div></div>@endif
+                    @if ($singleCandidate)<div class="notice"><div aria-hidden="true">i</div><div><strong>Skor ini bersifat relatif.</strong><p>Hanya satu kandidat yang lolos, sehingga nilai 1,0000 tidak dapat dibandingkan dengan produk lain dan bukan persentase kecocokan absolut.</p></div></div>@elseif ($winnerIsIdeal)<div class="notice score-explainer"><div aria-hidden="true">i</div><div><strong>Skor 1,0000 valid untuk run ini.</strong><p>Seluruh nilai kriteria pemenang mencapai nilai normalisasi tertinggi di antara kandidat yang lolos. Ini adalah skor relatif SAW, bukan persentase kecocokan atau jaminan produk pasti cocok.</p></div></div>@endif
                     <div class="criterion-list" aria-label="Kontribusi kriteria pemenang">@foreach($winner->contributions as $code => $value)<div><span><strong>{{ $code }} · {{ $criterionLabels[$code] ?? $code }}</strong><small>{{ number_format((float)$value, 4, ',', '.') }}</small></span><div class="criterion-track"><i data-width="{{ min(100,(float)$value*500) }}" style="width:{{ min(100,(float)$value*500) }}%"></i></div></div>@endforeach</div>
                     <details open><summary>Mengapa dipilih?</summary><ul>@foreach($explanations->resolve($winner->explanation_codes) as $reason)<li>{{ $reason['text'] }}</li>@endforeach</ul>@if($winner->warnings)<h3>Perhatian</h3><ul>@foreach($explanations->resolve($winner->warnings) as $warning)<li>{{ $warning['text'] }}</li>@endforeach</ul>@endif</details>
                     <div class="result-source-row"><span>BPOM <b>{{ $winner->formula?->bpom_number ?? '—' }}</b></span><span>Formula <b>{{ $winner->formula?->verification_status ?? '—' }}</b></span>@if($winner->formula?->source?->url)<a href="{{ $winner->formula->source->url }}" target="_blank" rel="noopener noreferrer">Buka sumber ↗</a>@endif</div>
@@ -61,7 +63,7 @@
             </article>
 
             <section class="runner-section"><div class="section-heading row-heading"><div><span class="eyebrow"><i></i> ALTERNATIF KUAT</span><h2>{{ $top->count() > 1 ? 'Dua pilihan berikutnya.' : 'Belum ada runner-up aman.' }}</h2></div><p>{{ $top->count() > 1 ? 'Skor berdekatan tidak berarti produknya identik. Baca formula, harga, dan catatan tiap alternatif.' : 'Safety gate hanya meloloskan satu alternatif untuk profil ini. Kandidat lain dapat dilihat pada daftar eksklusi di bawah.' }}</p></div>
-                <div class="runner-grid">@foreach($top->skip(1) as $result)<article class="runner-card" data-result-card><span class="rank">#{{ $result->rank }}{{ ($result->tie_count ?? 1) > 1 ? ' · SERI' : '' }}</span><div class="runner-product"><x-product-image :variant="$result->variant" /><div><small>{{ strtoupper($result->variant->brand->name) }}</small><h3>{{ $result->variant->name }}</h3></div></div><div class="runner-score"><strong data-score="{{ $result->final_score }}">{{ number_format((float)$result->final_score,4,',','.') }}</strong><span>{{ $scoreLabel }}</span></div><div class="runner-meta"><span>{{ $result->price ? 'Rp'.number_format((float)$result->price->amount,0,',','.') : 'Harga —' }}</span><span>BPOM {{ $result->formula?->bpom_number ?? '—' }}</span></div><details><summary>Lihat alasan & C1–C6</summary><div class="criterion-list">@foreach($result->contributions as $code=>$value)<div><span><strong>{{ $code }}</strong><small>{{ $criterionLabels[$code] ?? $code }} · {{ number_format((float)$value,4,',','.') }}</small></span><div class="criterion-track"><i data-width="{{ min(100,(float)$value*500) }}" style="width:{{ min(100,(float)$value*500) }}%"></i></div></div>@endforeach</div><ul>@foreach($explanations->resolve($result->explanation_codes) as $reason)<li>{{ $reason['text'] }}</li>@endforeach</ul></details></article>@endforeach</div>
+                <div class="runner-grid">@foreach($top->skip(1) as $result)<article class="runner-card" data-result-card><span class="rank">#{{ $result->rank }}</span><div class="runner-product"><x-product-image :variant="$result->variant" /><div><small>{{ strtoupper($result->variant->brand->name) }}</small><h3>{{ $result->variant->name }}</h3></div></div><div class="runner-score"><strong data-score="{{ $result->final_score }}">{{ number_format((float)$result->final_score,4,',','.') }}</strong><span>{{ $scoreLabel }}</span></div><div class="runner-meta"><span>{{ $result->price ? 'Rp'.number_format((float)$result->price->amount,0,',','.') : 'Harga —' }}</span><span>BPOM {{ $result->formula?->bpom_number ?? '—' }}</span></div><details><summary>Lihat alasan & C1–C6</summary><div class="criterion-list">@foreach($result->contributions as $code=>$value)<div><span><strong>{{ $code }}</strong><small>{{ $criterionLabels[$code] ?? $code }} · {{ number_format((float)$value,4,',','.') }}</small></span><div class="criterion-track"><i data-width="{{ min(100,(float)$value*500) }}" style="width:{{ min(100,(float)$value*500) }}%"></i></div></div>@endforeach</div><ul>@foreach($explanations->resolve($result->explanation_codes) as $reason)<li>{{ $reason['text'] }}</li>@endforeach</ul></details></article>@endforeach</div>
             </section>
 
             <section class="comparison-card"><div><span class="eyebrow"><i></i> PERBANDINGAN CEPAT</span><h2>Top 3 dalam satu pandangan.</h2></div><div class="table-wrap"><table><thead><tr><th>Produk</th><th>Skor</th><th>Ukuran</th><th>Harga</th><th>BPOM</th><th>Bukti</th></tr></thead><tbody>@foreach($top as $result)<tr><td><b>#{{ $result->rank }} {{ $result->variant->name }}</b><small>{{ $result->variant->brand->name }}</small></td><td>{{ number_format((float)$result->final_score,4,',','.') }}</td><td>{{ $result->sku ? rtrim(rtrim(number_format((float)$result->sku->size_value,2,',','.'),'0'),',').' '.$result->sku->size_unit : '—' }}</td><td>{{ $result->price ? 'Rp'.number_format((float)$result->price->amount,0,',','.') : '—' }}</td><td>{{ $result->formula?->bpom_number ?? '—' }}</td><td>@if($result->formula?->source?->url)<a href="{{ $result->formula->source->url }}" target="_blank" rel="noopener noreferrer">Sumber ↗</a>@else—@endif</td></tr>@endforeach</tbody></table></div></section>
@@ -69,11 +71,11 @@
             @if ($eligible->count() > 3)
                 <section class="eligible-section" data-result-card aria-labelledby="eligible-title">
                     <div class="section-heading row-heading">
-                        <div><span class="eyebrow"><i></i> KANDIDAT LAYAK</span><h2 id="eligible-title">Pilihan lain yang tetap sesuai profil.</h2></div>
-                        <p><strong>{{ $eligible->count() }} produk</strong> lolos pemeriksaan keamanan dan ikut dihitung dengan SAW. Top 3 sudah ditampilkan di atas; daftar ini memuat {{ $eligible->count() - 3 }} kandidat layak berikutnya berdasarkan peringkat.</p>
+                        <div><span class="eyebrow"><i></i> TOP 10</span><h2 id="eligible-title">{{ min($eligible->count(), 10) }} pilihan paling sesuai dengan profilmu.</h2></div>
+                        <p>Sistem menghitung seluruh <strong>{{ $eligible->count() }} kandidat</strong> yang lolos pemeriksaan awal. Berikut kandidat dengan skor SAW tertinggi; peringkat setelahnya tetap tersedia untuk audit dan perbandingan.</p>
                     </div>
-                    <div class="eligible-list" role="list" aria-label="Semua kandidat layak selain Top 3">
-                        @foreach($eligible->skip(3) as $result)
+                    <div class="eligible-list" role="list" aria-label="Peringkat 4 sampai 10 kandidat layak">
+                        @foreach($eligible->skip(3)->take(7) as $result)
                             <article class="eligible-row" role="listitem">
                                 <div class="eligible-rank"><span>#{{ $result->rank ?? $loop->iteration + 3 }}</span><small>PERINGKAT</small></div>
                                 <div class="eligible-product"><x-product-image :variant="$result->variant" /><div><small>{{ strtoupper($result->variant->brand->name) }}</small><h3>{{ $result->variant->name }}</h3><span>{{ $result->formula?->verification_status === 'verified' ? 'Formula terverifikasi' : 'Formula tercatat' }}</span></div></div>
@@ -83,6 +85,23 @@
                             </article>
                         @endforeach
                     </div>
+                    @if ($eligible->count() > 10)
+                        <details class="more-eligible-details">
+                            <summary>Lihat semua kandidat lainnya (peringkat 11–{{ $eligible->count() }})</summary>
+                            <p class="more-eligible-intro">Kandidat berikut tetap memenuhi pemeriksaan dan ikut dihitung oleh SAW, tetapi tidak termasuk tampilan utama Top 10.</p>
+                            <div class="eligible-list" role="list" aria-label="Peringkat kandidat layak setelah Top 10">
+                                @foreach($eligible->skip(10) as $result)
+                                    <article class="eligible-row" role="listitem">
+                                        <div class="eligible-rank"><span>#{{ $result->rank ?? $loop->iteration + 10 }}</span><small>PERINGKAT</small></div>
+                                        <div class="eligible-product"><x-product-image :variant="$result->variant" /><div><small>{{ strtoupper($result->variant->brand->name) }}</small><h3>{{ $result->variant->name }}</h3><span>{{ $result->formula?->verification_status === 'verified' ? 'Formula terverifikasi' : 'Formula tercatat' }}</span></div></div>
+                                        <div class="eligible-score"><strong>{{ number_format((float)$result->final_score,4,',','.') }}</strong><small>SKOR SAW</small></div>
+                                        <div class="eligible-meta"><span>{{ $result->price ? 'Rp'.number_format((float)$result->price->amount,0,',','.') : 'Harga â€”' }}</span><span>{{ $result->sku ? rtrim(rtrim(number_format((float)$result->sku->size_value,2,',','.'),'0'),',').' '.$result->sku->size_unit : 'Ukuran â€”' }}</span><span>BPOM {{ $result->formula?->bpom_number ?? 'â€”' }}</span></div>
+                                        <div class="eligible-action">@if($result->formula?->source?->url)<a href="{{ $result->formula->source->url }}" target="_blank" rel="noopener noreferrer">Bukti â†—</a>@endif</div>
+                                    </article>
+                                @endforeach
+                            </div>
+                        </details>
+                    @endif
                 </section>
             @endif
         @endif
@@ -95,7 +114,7 @@
     @endphp
     @if ($excludedResults->isNotEmpty())
         <section class="excluded-panel" data-result-card aria-labelledby="excluded-title">
-            <div class="excluded-heading"><span class="eyebrow"><i></i> SAFETY GATE</span><h2 id="excluded-title">Mengapa pilihan lain tidak masuk ranking?</h2><p>{{ $excludedResults->count() }} kandidat diperiksa, tetapi tidak diberi ranking karena bertentangan dengan input keamananmu. Kandidat hanya ditampilkan di sini untuk menjelaskan alasan safety gate dan tidak menjadi rekomendasi.</p></div>
+            <div class="excluded-heading"><span class="eyebrow"><i></i> TIDAK MASUK RANKING</span><h2 id="excluded-title">Kandidat yang ditahan oleh gate.</h2><p>{{ $excludedResults->count() }} kandidat diperiksa, tetapi tidak diberi ranking karena safety gate, batas harga, kesegaran harga, atau bukti formula. Kandidat hanya ditampilkan untuk transparansi audit dan bukan rekomendasi.</p></div>
             <details class="excluded-details"><summary>Lihat {{ $excludedResults->count() }} kandidat yang dikeluarkan beserta foto</summary><div class="excluded-grid">@foreach($excludedResults as $excluded)<article><x-product-image :variant="$excluded->variant" class="excluded-product-image" /><div><span>{{ $excluded->variant->catalog_code }}</span><small>{{ strtoupper($excluded->variant->brand->name) }}</small></div><strong>{{ $excluded->variant->name }}</strong><p>{{ collect($excluded->explanation_codes ?? [])->map(fn ($reason) => $excludedReasons[$reason] ?? $reason)->join(' · ') }}</p><em class="excluded-status">TIDAK MASUK RANKING</em></article>@endforeach</div></details>
         </section>
     @endif

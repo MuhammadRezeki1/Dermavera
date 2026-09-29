@@ -60,13 +60,9 @@
 
     <section class="content-card">
         <span class="card-kicker">KONSISTENSI</span>
-        <h2>Tie-break deterministik</h2>
-        <ol>
-            <li>C6 kualitas bukti, legalitas, dan keamanan kontekstual tertinggi</li>
-            <li>C1 keluhan, C2 kondisi, lalu C3 formulasi tertinggi</li>
-            <li>Harga unit lebih rendah</li>
-            <li>Nama varian ascending</li>
-        </ol>
+        <h2>Skor sama ditampilkan setara</h2>
+        <p>Jika dua atau lebih kandidat memiliki skor SAW yang sama dalam toleransi perhitungan, kandidat tersebut berbagi nomor peringkat yang sama. Rincian formula, harga, bukti, dan alasan tetap ditampilkan agar pengguna dapat membandingkan tanpa menyisipkan preferensi klinis tersembunyi.</p>
+        <p>Kode katalog hanya menjaga urutan teknis tetap konsisten dan tidak digunakan sebagai dasar skor atau keunggulan produk.</p>
         <p>Snapshot menyimpan input, alternatif layak, alasan eksklusi, X, R, W, kontribusi, V, versi dataset, versi rubrik, versi algoritma, dan timestamp.</p>
     </section>
 </div>

@@ -24,6 +24,13 @@ class ProductCatalogSeeder extends Seeder
 
     private const VERSIONED = ['G01', 'B03', 'B03N', 'B05', 'B06'];
 
+    /**
+     * Ingredients that are unambiguous physical abrasives in this dataset.
+     * Context-dependent materials such as cellulose, silica, and corn starch
+     * are evaluated by EligibilityService together with the product claim.
+     */
+    private const PHYSICAL_SCRUB_INGREDIENTS = ['PUMICE', 'PERLITE', 'HYDRATED SILICA', 'MICROCRYSTALLINE CELLULOSE', 'POLYETHYLENE', 'SYNTHETIC WAX'];
+
     private const SIZES = ['K01' => [[50, 'ml'], [100, 'ml']], 'K02' => [[50, 'ml'], [100, 'ml']], 'G07' => [[50, 'ml'], [100, 'ml']], 'N03' => [[50, 'ml']], 'N07' => [[100, 'ml']], 'M01' => [[100, 'ml']], 'M02' => [[100, 'ml']], 'M03' => [[100, 'ml']], 'M04' => [[100, 'ml']], 'N01' => [[100, 'ml']], 'N02' => [[100, 'ml']], 'N04' => [[100, 'ml']], 'N05' => [[100, 'ml']], 'N06' => [[100, 'ml']], 'N08' => [[100, 'ml']], 'B01' => [[100, 'g']], 'B02' => [[100, 'g']], 'B03' => [[100, 'g']], 'B03N' => [[100, 'g']], 'B04' => [[100, 'g']], 'B05' => [[100, 'g']], 'B06' => [[100, 'g']], 'B07' => [[100, 'g']], 'B08' => [[100, 'g']]];
 
     public function run(): void
@@ -153,7 +160,18 @@ class ProductCatalogSeeder extends Seeder
             if ($name === '') {
                 continue;
             }
-            $ingredient = Ingredient::firstOrCreate(['inci_name' => $name], ['display_name' => Str::title(Str::lower($name)), 'function_group' => 'unclassified', 'is_fragrance' => Str::contains($name, ['FRAGRANCE', 'PARFUM']), 'is_menthol' => Str::contains($name, 'MENTHOL'), 'is_physical_scrub' => Str::contains($name, ['PUMICE', 'PERLITE', 'SILICA', 'CELLULOSE', 'CORN STARCH', 'POLYETHYLENE', 'SYNTHETIC WAX']), 'is_exfoliant' => Str::contains($name, ['SALICYLIC ACID', 'GLYCOLIC ACID', 'LACTIC ACID', 'GLUCONOLACTONE'])]);
+            $classificationName = rtrim($name, '.');
+            $ingredient = Ingredient::updateOrCreate(
+                ['inci_name' => $name],
+                [
+                    'display_name' => Str::title(Str::lower($name)),
+                    'function_group' => 'unclassified',
+                    'is_fragrance' => Str::contains($name, ['FRAGRANCE', 'PARFUM']),
+                    'is_menthol' => Str::contains($name, 'MENTHOL'),
+                    'is_physical_scrub' => in_array($classificationName, self::PHYSICAL_SCRUB_INGREDIENTS, true),
+                    'is_exfoliant' => Str::contains($name, ['SALICYLIC ACID', 'GLYCOLIC ACID', 'LACTIC ACID', 'GLUCONOLACTONE']),
+                ],
+            );
             $formula->formulaIngredients()->create(['ingredient_id' => $ingredient->id, 'ordinal' => $index + 1, 'concentration_status' => 'not_declared']);
         }
     }

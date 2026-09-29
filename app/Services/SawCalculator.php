@@ -12,8 +12,6 @@ class SawCalculator implements SawCalculatorContract
 {
     private const SCALE = 10;
 
-    private const TIE_TOLERANCE = '0.0001';
-
     private const ALLOWED_TYPES = ['benefit', 'cost'];
 
     /**
@@ -104,8 +102,8 @@ class SawCalculator implements SawCalculatorContract
     }
 
     /**
-     * Membentuk kelompok seri dari skor tertinggi sebagai jangkar. Pendekatan ini
-     * membuat toleransi seri bersifat transitif dan aman digunakan untuk sorting.
+     * Mengurutkan berdasarkan skor SAW. Jika skor sama, kode hanya menjaga
+     * urutan teknis tetap stabil; kode tidak mengubah nilai atau peringkat seri.
      *
      * @param  array<string, array<string, int|float|string>>  $matrix
      * @param  array<string, string>  $scores
@@ -116,48 +114,7 @@ class SawCalculator implements SawCalculatorContract
         $ranking = array_keys($matrix);
         usort($ranking, fn ($a, $b) => BigDecimal::of($scores[$b])->compareTo(BigDecimal::of($scores[$a])) ?: strnatcasecmp((string) $a, (string) $b));
 
-        $groups = [];
-        foreach ($ranking as $key) {
-            $lastIndex = array_key_last($groups);
-            if ($lastIndex === null || BigDecimal::of($scores[$groups[$lastIndex][0]])->minus($scores[$key])->abs()->isGreaterThan(self::TIE_TOLERANCE)) {
-                $groups[][] = $key;
-
-                continue;
-            }
-
-            $groups[$lastIndex][] = $key;
-        }
-
-        foreach ($groups as &$group) {
-            usort($group, fn ($a, $b) => $this->compareTieBreak($a, $b, $matrix));
-        }
-        unset($group);
-
-        return array_merge(...$groups);
-    }
-
-    /** @param array<string, array<string, int|float|string>> $matrix */
-    private function compareTieBreak(string|int $a, string|int $b, array $matrix): int
-    {
-        foreach (['C6', 'C1', 'C2', 'C3'] as $criterion) {
-            if (isset($matrix[$a][$criterion], $matrix[$b][$criterion])) {
-                $comparison = $this->decimal($matrix[$b][$criterion], "Nilai {$criterion}")
-                    ->compareTo($this->decimal($matrix[$a][$criterion], "Nilai {$criterion}"));
-                if ($comparison !== 0) {
-                    return $comparison;
-                }
-            }
-        }
-
-        if (isset($matrix[$a]['C4'], $matrix[$b]['C4'])) {
-            $comparison = $this->decimal($matrix[$a]['C4'], 'Nilai C4')
-                ->compareTo($this->decimal($matrix[$b]['C4'], 'Nilai C4'));
-            if ($comparison !== 0) {
-                return $comparison;
-            }
-        }
-
-        return strnatcasecmp((string) $a, (string) $b);
+        return $ranking;
     }
 
     private function decimal(int|float|string $value, string $label): BigDecimal

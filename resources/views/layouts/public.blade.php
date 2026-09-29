@@ -10,7 +10,7 @@
     @fluxAppearance
     @livewireStyles
 </head>
-<body>
+<body x-data="{ logoutModalOpen: false, exitModalOpen: false }" @keydown.escape.window="logoutModalOpen = false; exitModalOpen = false" @open-exit-modal.window="exitModalOpen = true">
 <a href="#main" class="skip-link">Lewati ke konten utama</a>
 <header class="site-header" data-motion-root="navbar">
     <nav class="shell nav" aria-label="Navigasi utama" x-data="{ open: false }" @keydown.escape.window="open = false">
@@ -25,7 +25,7 @@
             <a href="{{ route('about') }}" wire:navigate @class(['active' => request()->routeIs('about')])>Penelitian</a>
             @auth
                 <a href="{{ route('history') }}" wire:navigate @class(['active' => request()->routeIs('history')])>Riwayat</a>
-                <form method="POST" action="{{ route('logout') }}" class="nav-logout">@csrf<button type="submit">Keluar</button></form>
+                <form id="logout-form" method="POST" action="{{ route('logout') }}" class="nav-logout">@csrf<button type="button" @click="logoutModalOpen = true">Keluar</button></form>
             @else
                 <a href="{{ route('login') }}" wire:navigate class="nav-login">Masuk</a>
                 <a href="{{ route('register') }}" wire:navigate class="button button-secondary nav-register">Daftar</a>
@@ -43,6 +43,18 @@
     </div>
     <div class="shell footer-bottom"><span>© {{ date('Y') }} Dermavera</span><p>Bukan alat diagnosis dan bukan pengganti dokter.</p></div>
 </footer>
+
+<div x-cloak x-show="logoutModalOpen" x-transition.opacity class="confirm-backdrop" role="presentation" @click.self="logoutModalOpen = false">
+    <section class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="logout-dialog-title" @click.stop>
+        <span class="confirm-kicker">KONFIRMASI</span>
+        <h2 id="logout-dialog-title">Keluar dari akun?</h2>
+        <p>Sesi akunmu akan ditutup. Kamu yakin ingin keluar?</p>
+        <div class="confirm-actions">
+            <button type="button" class="button button-secondary" @click="logoutModalOpen = false">Tidak</button>
+            <button type="button" class="button button-primary" @click="document.getElementById('logout-form').submit()">Ya, keluar</button>
+        </div>
+    </section>
+</div>
 @livewireScripts
 @fluxScripts
 </body>

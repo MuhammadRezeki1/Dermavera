@@ -12,18 +12,71 @@ use Illuminate\Support\Str;
 
 class CriterionScoringService
 {
-    public const VERSION = 'criteria-1.3.0';
+    public const VERSION = 'criteria-1.4.0';
 
-    /** @var array<string, list<string>> */
-    private const COMPLAINT_SUPPORT_TERMS = [
-        'berminyak' => ['KAOLIN', 'BENTONITE', 'CHARCOAL', 'ZINC'],
-        'komedo' => ['SALICYLIC ACID', 'TEA TREE', 'O-CYMEN-5-OL'],
-        'jerawat_ringan' => ['SALICYLIC ACID', 'TEA TREE', 'O-CYMEN-5-OL'],
-        'kusam' => ['NIACINAMIDE', 'ASCORB', '4-BUTYLRESORCINOL', 'LICORICE', 'TRANEXAMIC'],
-        'kering' => ['GLYCERIN', 'SORBITOL', 'PANTHENOL', 'BETA-GLUCAN', 'SODIUM PCA'],
+    /** @var array<string, array{relevant:list<string>, supportive:list<string>, limited:list<string>}> */
+    private const COMPLAINT_INGREDIENT_GROUPS = [
+        'berminyak' => [
+            'relevant' => ['KAOLIN', 'BENTONITE', 'SALICYLIC ACID'],
+            'supportive' => ['CHARCOAL', 'ZINC'],
+            'limited' => ['NIACINAMIDE'],
+        ],
+        'komedo' => [
+            'relevant' => ['SALICYLIC ACID'],
+            'supportive' => ['TEA TREE', 'O-CYMEN-5-OL'],
+            'limited' => ['CHARCOAL', 'ZINC'],
+        ],
+        'jerawat_ringan' => [
+            'relevant' => ['SALICYLIC ACID'],
+            'supportive' => ['TEA TREE', 'O-CYMEN-5-OL'],
+            'limited' => ['CHARCOAL', 'ZINC'],
+        ],
+        'kusam' => [
+            'relevant' => ['NIACINAMIDE', 'ASCORB', '4-BUTYLRESORCINOL'],
+            'supportive' => ['LICORICE', 'TRANEXAMIC'],
+            'limited' => ['SALICYLIC ACID'],
+        ],
+        'kering' => [
+            'relevant' => ['GLYCERIN', 'PANTHENOL', 'SODIUM PCA'],
+            'supportive' => ['SORBITOL', 'BETA-GLUCAN', 'BETAINE'],
+            'limited' => ['ALLANTOIN'],
+        ],
     ];
 
-    private const DRY_SKIN_IRRITANT_TERMS = ['FRAGRANCE', 'PARFUM', 'ESSENTIAL OIL', 'MENTHOL'];
+    /** @var array<string, array{relevant:list<string>, supportive:list<string>, limited:list<string>}> */
+    private const SKIN_INGREDIENT_GROUPS = [
+        'berminyak' => [
+            'relevant' => ['KAOLIN', 'BENTONITE', 'SALICYLIC ACID'],
+            'supportive' => ['CHARCOAL', 'ZINC'],
+            'limited' => ['TEA TREE'],
+        ],
+        'kombinasi' => [
+            'relevant' => ['KAOLIN', 'BENTONITE', 'SALICYLIC ACID'],
+            'supportive' => ['CHARCOAL', 'ZINC'],
+            'limited' => ['TEA TREE'],
+        ],
+        'kering' => [
+            'relevant' => ['GLYCERIN', 'PANTHENOL', 'SODIUM PCA'],
+            'supportive' => ['SORBITOL', 'BETA-GLUCAN', 'BETAINE'],
+            'limited' => ['ALLANTOIN'],
+        ],
+        'normal' => [
+            'relevant' => ['GLYCERIN', 'PANTHENOL', 'SODIUM PCA'],
+            'supportive' => ['SORBITOL', 'BETA-GLUCAN', 'BETAINE'],
+            'limited' => ['ALLANTOIN'],
+        ],
+    ];
+
+    /** @var array{relevant:list<string>, supportive:list<string>, limited:list<string>} */
+    private const FORMULA_INGREDIENT_GROUPS = [
+        'relevant' => ['GLYCERIN', 'PANTHENOL', 'ALLANTOIN', 'BETA-GLUCAN', 'SODIUM PCA', 'NIACINAMIDE', 'SALICYLIC ACID'],
+        'supportive' => ['SORBITOL', 'BETAINE', 'ASCORB', 'LICORICE', 'TEA TREE'],
+        'limited' => ['CHARCOAL', 'ZINC'],
+    ];
+
+    private const FRAGRANCE_TERMS = ['FRAGRANCE', 'PARFUM', 'ESSENTIAL OIL'];
+
+    private const EXFOLIANT_TERMS = ['SALICYLIC ACID', 'GLYCOLIC ACID', 'LACTIC ACID', 'GLUCONOLACTONE'];
 
     /**
      * @param  array{primary_complaint:string,skin_type:string,sensitive?:bool,barrier_impaired?:bool,acne_therapy?:bool,packaging_preference?:string}  $profile
@@ -34,67 +87,61 @@ class CriterionScoringService
         $formula ??= $variant->activeFormula;
         $inci = Str::upper($formula->inci_normalized ?: $formula->inci_raw);
         $formula->loadMissing('formulaIngredients.ingredient');
-        $ingredientNames = $formula->formulaIngredients
-            ->map(fn ($item) => Str::upper($item->ingredient->inci_name))
+        $ingredients = $formula->formulaIngredients->pluck('ingredient')->filter();
+        $ingredientNames = $ingredients
+            ->map(fn ($ingredient) => Str::upper($ingredient->inci_name))
             ->filter()
             ->values();
         $contains = fn (array $terms): bool => $ingredientNames->isNotEmpty()
             ? $ingredientNames->contains(fn (string $name) => Str::contains($name, $terms))
             : Str::contains($inci, $terms);
+        $hasFlag = fn (string $property, array $terms): bool => $ingredients->isNotEmpty()
+            ? $ingredients->contains(fn ($ingredient) => (bool) $ingredient->{$property})
+            : $contains($terms);
+        $hasFragrance = $hasFlag('is_fragrance', self::FRAGRANCE_TERMS);
+        $hasMenthol = $hasFlag('is_menthol', ['MENTHOL']);
+        $hasPhysicalScrub = $hasFlag('is_physical_scrub', ['PUMICE', 'PERLITE', 'HYDRATED SILICA', 'MICROCRYSTALLINE CELLULOSE', 'POLYETHYLENE', 'SYNTHETIC WAX']);
+        $hasExfoliant = $hasFlag('is_exfoliant', self::EXFOLIANT_TERMS);
         $complaint = $profile['primary_complaint'];
 
-        $c1 = 3;
-        if ($complaint === 'berminyak' && $contains(['KAOLIN', 'BENTONITE', 'CHARCOAL', 'ZINC'])) {
-            $c1++;
-        }
-        if (in_array($complaint, ['jerawat_ringan', 'komedo'], true) && $contains(['SALICYLIC ACID', 'TEA TREE', 'O-CYMEN-5-OL'])) {
-            $c1 += 2;
-        }
-        if ($complaint === 'kusam' && $contains(['NIACINAMIDE', 'ASCORB', '4-BUTYLRESORCINOL', 'LICORICE', 'TRANEXAMIC'])) {
-            $c1 += 2;
-        }
-        if ($complaint === 'kering' && $contains(['GLYCERIN', 'SORBITOL', 'PANTHENOL', 'BETA-GLUCAN', 'SODIUM PCA'])) {
-            $c1 += 1;
-        }
+        $primaryGroups = $this->classifyIngredientGroups($ingredientNames, self::COMPLAINT_INGREDIENT_GROUPS[$complaint] ?? ['relevant' => [], 'supportive' => [], 'limited' => []]);
+        $c1 = 3 + $this->groupScore($primaryGroups, 2, 1);
 
         $secondarySupport = [];
         foreach (array_unique($profile['secondary_concerns'] ?? []) as $secondaryConcern) {
-            if ($secondaryConcern === $complaint || ! isset(self::COMPLAINT_SUPPORT_TERMS[$secondaryConcern])) {
+            if ($secondaryConcern === $complaint || ! isset(self::COMPLAINT_INGREDIENT_GROUPS[$secondaryConcern])) {
                 continue;
             }
 
-            if ($contains(self::COMPLAINT_SUPPORT_TERMS[$secondaryConcern])) {
+            $secondaryGroups = $this->classifyIngredientGroups($ingredientNames, self::COMPLAINT_INGREDIENT_GROUPS[$secondaryConcern]);
+            if ($this->hasPositiveGroup($secondaryGroups)) {
                 $c1 += 1;
                 $secondarySupport[] = $secondaryConcern;
             }
         }
 
-        $c2 = 3;
-        if (in_array($profile['skin_type'], ['berminyak', 'kombinasi'], true) && $contains(['KAOLIN', 'BENTONITE', 'CHARCOAL', 'SALICYLIC ACID'])) {
-            $c2++;
-        }
-        if (in_array($profile['skin_type'], ['kering', 'normal'], true) && $contains(['GLYCERIN', 'SORBITOL', 'PANTHENOL', 'BETAINE', 'SODIUM PCA'])) {
-            $c2++;
-        }
-        $dryContext = ($profile['skin_type'] ?? null) === 'kering'
-            || $complaint === 'kering'
-            || ($profile['barrier_impaired'] ?? false)
-            || ($profile['sensitive'] ?? false);
-        if ($dryContext && $contains(self::DRY_SKIN_IRRITANT_TERMS)) {
+        $skinGroups = $this->classifyIngredientGroups($ingredientNames, self::SKIN_INGREDIENT_GROUPS[$profile['skin_type']] ?? ['relevant' => [], 'supportive' => [], 'limited' => []]);
+        $c2 = 3 + ($this->hasPositiveGroup($skinGroups) ? 1 : 0);
+
+        $sensitiveContext = (bool) ($profile['sensitive'] ?? false);
+        $barrierContext = (bool) ($profile['barrier_impaired'] ?? false);
+        $therapyContext = (bool) ($profile['acne_therapy'] ?? false);
+        if (($sensitiveContext || $barrierContext) && $hasFragrance) {
             $c2--;
         }
-        if (($profile['sensitive'] ?? false) && $contains(['MENTHOL', 'FRAGRANCE', 'PARFUM', 'ESSENTIAL OIL'])) {
-            $c2 -= 2;
+        if (($sensitiveContext || $barrierContext) && $hasMenthol) {
+            $c2--;
+        }
+        if (($sensitiveContext || $barrierContext) && $hasPhysicalScrub) {
+            $c2--;
+        }
+        if ($barrierContext && $hasExfoliant) {
+            $c2--;
         }
 
-        $c3 = 3;
-        if ($contains(['GLYCERIN', 'SORBITOL', 'PANTHENOL', 'ALLANTOIN', 'BETA-GLUCAN'])) {
-            $c3++;
-        }
-        if ($contains(['NIACINAMIDE', 'SALICYLIC ACID', 'ASCORB', 'LICORICE', 'TEA TREE'])) {
-            $c3++;
-        }
-        if ($contains(['MENTHOL']) && ($profile['sensitive'] ?? false)) {
+        $formulaGroups = $this->classifyIngredientGroups($ingredientNames, self::FORMULA_INGREDIENT_GROUPS);
+        $c3 = 3 + ($formulaGroups['relevant'] ? 1 : 0) + ($formulaGroups['supportive'] ? 1 : 0);
+        if (($sensitiveContext || $barrierContext) && $hasMenthol) {
             $c3--;
         }
 
@@ -119,7 +166,10 @@ class CriterionScoringService
         if (in_array($formula->verification_status, ['VERIFIED_OFFICIAL_INCI', 'VALIDATED_ID_FULL_INCI'], true)) {
             $c6++;
         }
-        if (($profile['sensitive'] ?? false) && $contains(['MENTHOL', 'FRAGRANCE', 'PARFUM'])) {
+        if (($sensitiveContext || $barrierContext) && ($hasMenthol || $hasFragrance || $hasPhysicalScrub)) {
+            $c6--;
+        }
+        if (($barrierContext || $therapyContext) && $hasExfoliant) {
             $c6--;
         }
 
@@ -130,6 +180,33 @@ class CriterionScoringService
             'sku' => $sku,
             'price' => $price,
         ];
+    }
+
+    /**
+     * @param  array{relevant:list<string>,supportive:list<string>,limited:list<string>}  $groups
+     * @return array{relevant:bool,supportive:bool,limited:bool}
+     */
+    private function classifyIngredientGroups($ingredientNames, array $groups): array
+    {
+        $contains = fn (array $terms): bool => $ingredientNames->contains(fn (string $name) => Str::contains($name, $terms));
+
+        return [
+            'relevant' => $contains($groups['relevant']),
+            'supportive' => $contains($groups['supportive']),
+            'limited' => $contains($groups['limited']),
+        ];
+    }
+
+    /** @param array{relevant:bool,supportive:bool,limited:bool} $groups */
+    private function groupScore(array $groups, int $relevantPoints, int $supportivePoints): int
+    {
+        return $groups['relevant'] ? $relevantPoints : ($groups['supportive'] ? $supportivePoints : 0);
+    }
+
+    /** @param array{relevant:bool,supportive:bool,limited:bool} $groups */
+    private function hasPositiveGroup(array $groups): bool
+    {
+        return $groups['relevant'] || $groups['supportive'];
     }
 
     /**
